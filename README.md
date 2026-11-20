@@ -18,5 +18,5 @@ A lightweight local web UI for setting custom Discord Rich Presence statuses on 
 
 1. **Clone the repository**
    ```bash
-   git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git)
+   git clone [https://github.com/Araragi-ky/Discord-Custom-RPC-for-every-desktop-app-.git](https://github.com/Araragi-ky/Discord-Custom-RPC-for-every-desktop-app-.git)
    cd YOUR_REPO_NAME
