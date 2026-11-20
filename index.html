@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom RPC</title>
+    <style>
+        :root {
+            --bg: #1e1f22;
+            --surface: rgba(43, 45, 49, 0.84);
+            --input-bg: rgba(30, 31, 34, 0.9);
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #f2f3f5;
+            --muted: #b5bac1;
+            --accent: #5865f2;
+            --accent-hover: #4752c4;
+            --danger: #da373c;
+            --danger-hover: #a12828;
+            --success: #23a55a;
+            --warn: #f0b232;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: var(--text);
+            background-color: var(--bg);
+            background-image: url('/assets/bg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .card {
+            width: min(94vw, 560px);
+            max-height: 92vh;
+            padding: 18px 20px;
+            overflow-y: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+        }
+
+        .card::-webkit-scrollbar { width: 6px; }
+        .card::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        #appIconPreview {
+            width: 48px;
+            height: 48px;
+            padding: 5px;
+            border-radius: 10px;
+            border: 2px solid var(--accent);
+            background: var(--input-bg);
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .header-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .sub {
+            margin-top: 3px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .pfp-wrapper {
+            position: relative;
+            width: 68px;
+            height: 68px;
+            flex-shrink: 0;
+        }
+
+        #pfpImg {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            object-fit: cover;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            display: block;
+        }
+
+        .pfp-edit-btn {
+            position: absolute;
+            right: -5px;
+            bottom: -5px;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: #2b2d31;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        .pfp-edit-btn:hover { background: var(--accent); }
+        .pfp-edit-btn svg { width: 13px; height: 13px; }
+
+        label {
+            display: block;
+            margin: 8px 0 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        input, select {
+            width: 100%;
+            height: 34px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--input-bg);
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        .row-flex {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .row-flex select {
+            flex: 1;
+            min-width: 0;
+            text-overflow: ellipsis;
+        }
+
+        .divider {
+            border-top: 1px solid var(--border);
+            margin: 12px 0 4px;
+        }
+
+        button {
+            height: 34px;
+            padding: 0 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .btn-primary { background: var(--accent); flex: 2; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-secondary { background: #4e5058; }
+        .btn-secondary:hover { background: #6d6f78; }
+        .btn-danger { background: var(--danger); flex: 1; }
+        .btn-danger:hover { background: var(--danger-hover); }
+
+        #status {
+            margin-top: 10px;
+            min-height: 16px;
+            font-size: 12px;
+            text-align: center;
+            color: var(--success);
+        }
+
+        .note {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .hidden { display: none !important; }
+
+        .float-btn {
+            position: fixed;
+            bottom: 16px;
+            width: 38px;
+            height: 38px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+            z-index: 100;
+        }
+
+        .float-btn:hover { background: var(--accent); }
+        .float-btn svg { width: 18px; height: 18px; }
+        .bg-btn { right: 16px; }
+        .term-btn { right: 62px; }
+
+        .terminal {
+            position: fixed;
+            bottom: 62px;
+            right: 16px;
+            width: min(92vw, 380px);
+            height: 230px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(24, 25, 28, 0.95);
+            box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55);
+            z-index: 101;
+        }
+
+        .terminal-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #23252a;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .terminal-actions { display: flex; gap: 6px; }
+
+        .term-mini {
+            height: 22px;
+            padding: 0 8px;
+            font-size: 11px;
+            background: #4e5058;
+            border-radius: 4px;
+        }
+
+        .term-mini:hover { background: #6d6f78; }
+
+        .terminal-body {
+            flex: 1;
+            padding: 10px 12px;
+            overflow-y: auto;
+            font-family: Consolas, 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .log-line { margin-bottom: 4px; word-break: break-word; }
+        .log-time { color: #80848e; margin-right: 6px; }
+        .log-info { color: var(--text); }
+        .log-success { color: var(--success); }
+        .log-warn { color: var(--warn); }
+        .log-error { color: #f23f42; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <img id="appIconPreview" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>" alt="App Icon">
+            <div class="header-info">
+                <h2>Custom RPC</h2>
+                <div class="sub">Discord Rich Presence Manager</div>
+            </div>
+            <div class="pfp-wrapper">
+                <img id="pfpImg" src="/assets/pfp" alt="Avatar">
+                <button class="pfp-edit-btn" id="pfpBtn" title="Change Profile Picture">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                </button>
+                <input type="file" id="pfpInput" class="hidden" accept=".png,.jpg,.jpeg,.gif,.webp">
+            </div>
+        </div>
+
+        <label for="appSelect">Open Windows</label>
+        <div class="row-flex">
+            <select id="appSelect">
+                <option value="">Scanning...</option>
+            </select>
+            <button class="btn-secondary" id="refreshBtn">Refresh</button>
+        </div>
+
+        <div class="grid-2">
+            <div>
+                <label for="activityType">Activity Type</label>
+                <select id="activityType">
+                    <option value="0">Playing</option>
+                    <option value="2">Listening</option>
+                    <option value="3">Watching</option>
+                    <option value="5">Competing</option>
+                </select>
+            </div>
+            <div>
+                <label for="timestampMode">Timestamp</label>
+                <select id="timestampMode">
+                    <option value="now">Start from now (00:00)</option>
+                    <option value="since_open">Since app open</option>
+                    <option value="current_time">Local time of day</option>
+                    <option value="custom">Custom (Unix)</option>
+                    <option value="none">None</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="customTimestamps" class="grid-2 hidden">
+            <div>
+                <label for="startTimestamp">Start (sec or ms)</label>
+                <input type="number" id="startTimestamp" placeholder="e.g. 1763658000">
+            </div>
+            <div>
+                <label for="endTimestamp">End (optional)</label>
+                <input type="number" id="endTimestamp" placeholder="e.g. 1763661600">
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div>
+                <label for="details">Details (Line 1)</label>
+                <input type="text" id="details" placeholder="Using Notepad">
+            </div>
+            <div>
+                <label for="state">State (Line 2)</label>
+                <input type="text" id="state" placeholder="Editing notes.txt">
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="grid-3">
+            <div>
+                <label for="largeImage">Large Image</label>
+                <input type="text" id="largeImage" placeholder="Blank = app icon">
+            </div>
+            <div>
+                <label for="largeText">Large Text</label>
+                <input type="text" id="largeText" placeholder="Tooltip">
+            </div>
+            <div>
+                <label for="largeUrl">Large URL</label>
+                <input type="text" id="largeUrl" placeholder="https://...">
+            </div>
+        </div>
+
+        <div class="grid-3">
+            <div>
+                <label for="smallImage">Small Image</label>
+                <input type="text" id="smallImage" placeholder="URL or key">
+            </div>
+            <div>
+                <label for="smallText">Small Text</label>
+                <input type="text" id="smallText" placeholder="Tooltip">
+            </div>
+            <div>
+                <label for="smallUrl">Small URL</label>
+                <input type="text" id="smallUrl" placeholder="https://...">
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="grid-2">
+            <div>
+                <label for="btn1Text">Button 1 Label</label>
+                <input type="text" id="btn1Text" placeholder="Optional">
+            </div>
+            <div>
+                <label for="btn1Url">Button 1 URL</label>
+                <input type="text" id="btn1Url" placeholder="https://...">
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div>
+                <label for="btn2Text">Button 2 Label</label>
+                <input type="text" id="btn2Text" placeholder="Optional">
+            </div>
+            <div>
+                <label for="btn2Url">Button 2 URL</label>
+                <input type="text" id="btn2Url" placeholder="https://...">
+            </div>
+        </div>
+
+        <div class="note">Discord hides your own RPC buttons from your own client, but other users can see and click them.</div>
+
+        <div class="actions">
+            <button class="btn-primary" id="updateBtn">Update RPC</button>
+            <button class="btn-danger" id="clearBtn">Clear RPC</button>
+        </div>
+        <div id="status"></div>
+    </div>
+
+    <div id="terminalPanel" class="terminal hidden">
+        <div class="terminal-head">
+            <span>Logs</span>
+            <div class="terminal-actions">
+                <button class="term-mini" id="clearLogsBtn">Clear</button>
+                <button class="term-mini" id="closeTermBtn">×</button>
+            </div>
+        </div>
+        <div id="terminalBody" class="terminal-body"></div>
+    </div>
+
+    <button class="float-btn term-btn" id="termToggleBtn" title="Toggle Logs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+        </svg>
+    </button>
+
+    <button class="float-btn bg-btn" id="bgBtn" title="Change Background">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+    </button>
+    <input type="file" id="bgInput" class="hidden" accept=".png,.jpg,.jpeg,.gif,.webp">
+
+    <script>
+        const DEFAULT_AVATAR = "data:image/svg+xml," + encodeURIComponent(
+            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+                <rect width="64" height="64" fill="#1e1f22"/>
+                <circle cx="32" cy="24" r="11" fill="#4e5058"/>
+                <path d="M14 54c0-10 8-16 18-16s18 6 18 16" fill="#4e5058"/>
+            </svg>`
+        );
+
+        const $ = (id) => document.getElementById(id);
+        let detectedApps = [];
+        let selectedExePath = '';
+        let lastLogCount = 0;
+
+        $('pfpImg').addEventListener('error', () => {
+            if ($('pfpImg').src !== DEFAULT_AVATAR) {
+                $('pfpImg').src = DEFAULT_AVATAR;
+            }
+        });
+
+        function setStatus(text, color = '#23a55a') {
+            const el = $('status');
+            el.style.color = color;
+            el.textContent = text;
+        }
+
+        async function uploadAsset(endpoint, file, onSuccess) {
+            setStatus('Uploading image...', '#b5bac1');
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': file.type },
+                body: file
+            });
+
+            if (res.ok) {
+                onSuccess();
+                setStatus(await res.text());
+            } else {
+                setStatus(`Error: ${await res.text()}`, '#da373c');
+            }
+            fetchLogs();
+        }
+
+        function updatePreview() {
+            const customUrl = $('largeImage').value.trim();
+            if (customUrl.startsWith('http')) {
+                $('appIconPreview').src = customUrl;
+            } else if (selectedExePath) {
+                $('appIconPreview').src = `/icon?path=${encodeURIComponent(selectedExePath)}`;
+            }
+        }
+
+        async function loadApps() {
+            const select = $('appSelect');
+            select.innerHTML = '<option value="">Scanning...</option>';
+            try {
+                const res = await fetch('/apps');
+                detectedApps = await res.json();
+                select.innerHTML = '<option value="">-- Choose an open app --</option>';
+
+                detectedApps.forEach((app, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.textContent = `${app.appName} — ${app.title.slice(0, 42)}`;
+                    select.appendChild(opt);
+                });
+            } catch {
+                setStatus('Error loading open windows.', '#da373c');
+            }
+            fetchLogs();
+        }
+
+        async function fetchLogs(forceScroll = false) {
+            try {
+                const res = await fetch('/logs');
+                const entries = await res.json();
+                if (!forceScroll && entries.length === lastLogCount) return;
+
+                const body = $('terminalBody');
+                body.innerHTML = '';
+                for (const entry of entries) {
+                    const line = document.createElement('div');
+                    line.className = `log-line log-${entry.type}`;
+
+                    const time = document.createElement('span');
+                    time.className = 'log-time';
+                    time.textContent = `[${entry.time}]`;
+
+                    const msg = document.createElement('span');
+                    msg.textContent = entry.message;
+
+                    line.append(time, msg);
+                    body.appendChild(line);
+                }
+
+                body.scrollTop = body.scrollHeight;
+                lastLogCount = entries.length;
+            } catch {}
+        }
+
+        $('pfpBtn').addEventListener('click', () => $('pfpInput').click());
+        $('pfpInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            uploadAsset('/assets/pfp', file, () => {
+                $('pfpImg').src = `/assets/pfp?t=${Date.now()}`;
+            });
+            e.target.value = '';
+        });
+
+        $('bgBtn').addEventListener('click', () => $('bgInput').click());
+        $('bgInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            uploadAsset('/assets/bg', file, () => {
+                document.body.style.backgroundImage = `url('/assets/bg?t=${Date.now()}')`;
+            });
+            e.target.value = '';
+        });
+
+        $('refreshBtn').addEventListener('click', loadApps);
+
+        $('appSelect').addEventListener('change', (e) => {
+            const app = detectedApps[e.target.value];
+            if (!app) return;
+            selectedExePath = app.path;
+            $('details').value = `Using ${app.appName}`;
+            $('state').value = app.title.slice(0, 128);
+            $('largeImage').value = '';
+            $('largeText').value = app.appName;
+            updatePreview();
+        });
+
+        $('largeImage').addEventListener('input', updatePreview);
+
+        $('timestampMode').addEventListener('change', (e) => {
+            $('customTimestamps').classList.toggle('hidden', e.target.value !== 'custom');
+        });
+
+        $('updateBtn').addEventListener('click', async () => {
+            setStatus('Updating RPC...', '#b5bac1');
+            const payload = {
+                exePath: selectedExePath,
+                activityType: $('activityType').value,
+                timestampMode: $('timestampMode').value,
+                startTimestamp: $('startTimestamp').value,
+                endTimestamp: $('endTimestamp').value,
+                details: $('details').value.trim(),
+                state: $('state').value.trim(),
+                largeImage: $('largeImage').value.trim(),
+                largeText: $('largeText').value.trim(),
+                largeUrl: $('largeUrl').value.trim(),
+                smallImage: $('smallImage').value.trim(),
+                smallText: $('smallText').value.trim(),
+                smallUrl: $('smallUrl').value.trim(),
+                btn1Text: $('btn1Text').value.trim(),
+                btn1Url: $('btn1Url').value.trim(),
+                btn2Text: $('btn2Text').value.trim(),
+                btn2Url: $('btn2Url').value.trim()
+            };
+
+            const res = await fetch('/set-rpc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                setStatus('RPC updated.');
+            } else {
+                setStatus(`Error: ${await res.text()}`, '#da373c');
+            }
+            fetchLogs();
+        });
+
+        $('clearBtn').addEventListener('click', async () => {
+            await fetch('/clear-rpc', { method: 'POST' });
+            setStatus('RPC cleared.', '#b5bac1');
+            fetchLogs();
+        });
+
+        const toggleTerminal = () => {
+            const panel = $('terminalPanel');
+            panel.classList.toggle('hidden');
+            if (!panel.classList.contains('hidden')) fetchLogs(true);
+        };
+
+        $('termToggleBtn').addEventListener('click', toggleTerminal);
+        $('closeTermBtn').addEventListener('click', toggleTerminal);
+        $('clearLogsBtn').addEventListener('click', async () => {
+            await fetch('/clear-logs', { method: 'POST' });
+            lastLogCount = 0;
+            fetchLogs(true);
+        });
+
+        loadApps();
+        fetchLogs();
+        setInterval(fetchLogs, 2000);
+    </script>
+</body>
+</html>
